@@ -3,12 +3,14 @@ import os
 import re
 import sys
 
+import numpy as np
+import torch
 import word2vec as w2v
 
 sys.path.append('.')
 sys.path.append('./dataloader')
 from dataloader import data_loader as MovieQA
-import numpy as np
+from model import PositionEncoder as pe
 
 mqa = MovieQA.DataLoader()
 
@@ -223,6 +225,21 @@ def load_glove_params():
     return W_norm, vocab, ivocab
 
 
+def load_glove_embeddings(path, word2idx, embedding_dim):
+    """Loading the glove embeddings"""
+    with open(path) as f:
+        embeddings = np.zeros((len(word2idx), embedding_dim))
+        for line in f.readlines():
+            values = line.split()
+            word = values[0]
+            index = word2idx.get(word)
+            if index:
+                vector = np.array(values[1:], dtype='float32')
+                if vector.shape[-1] != embedding_dim:
+                    raise Exception('Dimension not matching.')
+                embeddings[index] = vector
+        return torch.from_numpy(embeddings).float()
+
 def load_model(desc):
     model = None
     if desc == 'GloVe':
@@ -242,3 +259,19 @@ if __name__ == '__main__':
 
     model, desc = load_model(desc)
     one_pass_encoding(model, desc)
+
+    vocab_size = len(model[1])
+    emb_dim = model[0].shape[0]
+    max_len = 32
+    batch_size = 1
+    emb_mat = torch.from_numpy(model[0]).float()
+
+    pos_enc = pe.PositionalEncoder(vocab_size, emb_dim, max_len, batch_size, emb_mat)
+
+    QA = mqa.get_qa_data('full')
+    sentence = normalize_alphanumeric(QA[100].question.lower()).split(' ')
+    sentence_numeric = []
+    for i in sentence:
+        sentence_numeric.append(model[1][i.lower()])
+
+    print(pos_enc(torch.tensor(sentence_numeric)))
