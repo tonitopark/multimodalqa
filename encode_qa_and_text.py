@@ -261,7 +261,7 @@ if __name__ == '__main__':
     one_pass_encoding(model, desc)
 
     vocab_size = len(model[1])
-    emb_dim = model[0].shape[0]
+    emb_dim = model[0].shape[1]
     max_len = 32
     batch_size = 1
     emb_mat = torch.from_numpy(model[0]).float()
@@ -271,7 +271,9 @@ if __name__ == '__main__':
     QA = mqa.get_qa_data('full')
     sentence = normalize_alphanumeric(QA[100].question.lower()).split(' ')
     sentence_numeric = []
-    for i in sentence:
-        sentence_numeric.append(model[1][i.lower()])
+    for word in sentence:
+        sentence_numeric.append(model[1][word.lower()])
+    while len(sentence_numeric) < 32:
+        sentence_numeric.append(0)
 
-    print(pos_enc(torch.tensor(sentence_numeric)))
+    print(pos_enc.forward(torch.tensor([sentence_numeric])))
